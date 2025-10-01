@@ -211,7 +211,7 @@
         header.onerror = () => {
             document.getElementById('placeholder').textContent = 'Error loading header image';
         };
-        header.src = 'assets/header.png';
+        header.src = './assets/header.png';
 
         // Handle poster upload
         document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -393,6 +393,8 @@
             ctx.fillRect(0, footerY, canvasWidth, footerNaturalHeight);
             
             if (footerText.trim()) {
+                // Apply multiply blend mode for footer text
+                ctx.globalCompositeOperation = 'multiply';
                 ctx.fillStyle = '#000000';
                 ctx.font = 'bold 32px "Courier New", monospace';
                 ctx.textAlign = 'center';
@@ -402,6 +404,7 @@
                 lines.forEach((line, index) => {
                     ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
                 });
+                ctx.globalCompositeOperation = 'source-over'; // Reset to normal
             }
         }
 
