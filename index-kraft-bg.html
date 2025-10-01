@@ -387,10 +387,6 @@
             const headerX = (canvasWidth - drawHeaderWidth) / 2;
             const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
             ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
-
-            // Draw footer
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, footerY, canvasWidth, footerNaturalHeight);
             
             if (footerText.trim()) {
                 // Apply multiply blend mode for footer text
