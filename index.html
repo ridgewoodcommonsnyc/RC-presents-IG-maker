@@ -330,25 +330,69 @@
         function wrapText(ctx, text, maxWidth) {
             if (!text.trim()) return [];
             
-            const words = text.split(' ');
             const lines = [];
-            let currentLine = '';
-
-            words.forEach(word => {
-                const testLine = currentLine ? currentLine + ' ' + word : word;
-                const metrics = ctx.measureText(testLine);
+            
+            // Split by newlines first to respect manual breaks
+            const paragraphs = text.split('\n');
+            
+            paragraphs.forEach(paragraph => {
+                if (!paragraph.trim()) {
+                    lines.push(''); // Preserve empty lines
+                    return;
+                }
                 
-                if (metrics.width > maxWidth && currentLine) {
-                    lines.push(currentLine);
-                    currentLine = word;
-                } else {
-                    currentLine = testLine;
+                // Split into segments at ". " (period + space) for better breaking
+                const segments = paragraph.split(/(\.\s+)/);
+                let currentLine = '';
+                
+                segments.forEach(segment => {
+                    // Try adding the segment
+                    const testLine = currentLine + segment;
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth) {
+                        if (currentLine) {
+                            // Current line is full, push it
+                            lines.push(currentLine.trim());
+                            currentLine = segment;
+                            
+                            // Check if the segment itself is too long
+                            if (ctx.measureText(segment).width > maxWidth) {
+                                // Force-break long segment by characters
+                                const chars = segment.split('');
+                                currentLine = '';
+                                chars.forEach(char => {
+                                    const test = currentLine + char;
+                                    if (ctx.measureText(test).width > maxWidth && currentLine) {
+                                        lines.push(currentLine);
+                                        currentLine = char;
+                                    } else {
+                                        currentLine = test;
+                                    }
+                                });
+                            }
+                        } else {
+                            // Segment is too long and nothing in current line, force-break it
+                            const chars = segment.split('');
+                            chars.forEach(char => {
+                                const test = currentLine + char;
+                                if (ctx.measureText(test).width > maxWidth && currentLine) {
+                                    lines.push(currentLine);
+                                    currentLine = char;
+                                } else {
+                                    currentLine = test;
+                                }
+                            });
+                        }
+                    } else {
+                        currentLine = testLine;
+                    }
+                });
+                
+                if (currentLine.trim()) {
+                    lines.push(currentLine.trim());
                 }
             });
-            
-            if (currentLine) {
-                lines.push(currentLine);
-            }
             
             return lines;
         }
