@@ -287,14 +287,8 @@
             // Draw poster
             ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
 
-            // Calculate footer position based on where poster ends
-            const footerStartY = posterY + posterHeight + posterGapFromFooter;
-            const actualBottomMargin = canvasHeight - footerStartY - footerNaturalHeight;
-            
-            // If we have more bottom space than needed, we can center things better
-            const footerY = actualBottomMargin > minBottomMargin ? 
-                canvasHeight - footerNaturalHeight - minBottomMargin : 
-                footerStartY;
+            // Place footer right after the poster with the gap
+            const footerY = posterY + posterHeight + posterGapFromFooter;
 
             // Draw header image with proper padding and maintain aspect ratio
             const headerAspect = headerImage.width / headerImage.height;
