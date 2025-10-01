@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Poster Framer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f3f4f6;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #111827;
+            margin-bottom: 2rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        .btn-blue {
+            background-color: #2563eb;
+            color: white;
+        }
+        .btn-blue:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-green {
+            background-color: #16a34a;
+            color: white;
+        }
+        .btn-green:hover {
+            background-color: #15803d;
+        }
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        input[type="radio"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .preview-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 300px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            max-height: 70vh;
+        }
+        .placeholder {
+            text-align: center;
+            color: #6b7280;
+            padding: 5rem 2rem;
+        }
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Poster Framer</h1>
+        
+        <div class="grid">
+            <!-- Controls -->
+            <div>
+                <div class="card">
+                    <h2>Upload Poster</h2>
+                    <input type="file" id="fileInput" accept="image/*">
+                    <button class="btn btn-blue" onclick="document.getElementById('fileInput').click()">
+                        📤 Choose Image
+                    </button>
+                </div>
+
+                <div class="card">
+                    <h2>Format</h2>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="ratio" value="story" checked onchange="updateRatio(this.value)">
+                            <span>Instagram Story (9:16)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="ratio" value="post" onchange="updateRatio(this.value)">
+                            <span>Instagram Post (4:5)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Footer Text</h2>
+                    <textarea id="footerText" rows="4" placeholder="e.g., December 2, 6:30 PM" oninput="renderCanvas()"></textarea>
+                </div>
+
+                <button id="downloadBtn" class="btn btn-green" onclick="downloadImage()" style="display: none;">
+                    ⬇️ Download Image
+                </button>
+            </div>
+
+            <!-- Preview -->
+            <div class="card">
+                <h2>Preview</h2>
+                <div class="preview-container">
+                    <div id="placeholder" class="placeholder">Loading header...</div>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let posterImage = null;
+        let headerImage = null;
+        let ratio = 'story';
+
+        // Load header image
+        const header = new Image();
+        header.onload = () => {
+            headerImage = header;
+            document.getElementById('placeholder').textContent = 'Upload a poster to see preview';
+        };
+        header.onerror = () => {
+            document.getElementById('placeholder').textContent = 'Error loading header image';
+        };
+        header.src = 'assets/header.png';
+
+        // Handle poster upload
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        posterImage = img;
+                        renderCanvas();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function updateRatio(newRatio) {
+            ratio = newRatio;
+            renderCanvas();
+        }
+
+        function generatePaperTexture(ctx, width, height) {
+            // Base color: Subtle Beige
+            ctx.fillStyle = '#E5D5C0';
+            ctx.fillRect(0, 0, width, height);
+
+            // Add subtle color variation
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const size = Math.random() * 100 + 50;
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                const alpha = Math.random() * 0.05;
+                gradient.addColorStop(0, `rgba(139, 90, 43, ${alpha})`);
+                gradient.addColorStop(1, `rgba(139, 90, 43, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // Add speckles (600 speckles, size 0.3-1, darkness variation 25)
+            for (let i = 0; i < 600; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const size = Math.random() * 1 + 0.3;
+                const darkness = Math.random() * 25;
+                
+                ctx.fillStyle = `rgba(${60 + darkness}, ${40 + darkness}, ${20 + darkness}, ${0.3 + Math.random() * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Add noise texture
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 10;
+                data[i] += noise;     // R
+                data[i + 1] += noise; // G
+                data[i + 2] += noise; // B
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const placeholder = document.getElementById('placeholder');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (!posterImage || !headerImage) return;
+
+            const ctx = canvas.getContext('2d');
+            
+            // Show canvas, hide placeholder
+            canvas.style.display = 'block';
+            placeholder.style.display = 'none';
+            downloadBtn.style.display = 'flex';
+
+            // Set canvas dimensions based on ratio
+            const canvasWidth = 1080;
+            const canvasHeight = ratio === 'story' ? 1920 : 1350;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            // Generate brown paper texture background
+            generatePaperTexture(ctx, canvasWidth, canvasHeight);
+
+            // Header dimensions - give it proper space with padding
+            const headerImageHeight = 200;
+            const headerPadding = 20;
+            const headerHeight = headerImageHeight + (headerPadding * 2);
+            
+            // Get footer text and calculate its natural height
+            const footerText = document.getElementById('footerText').value;
+            ctx.font = 'bold 32px "Courier New", monospace';
+            const maxWidth = canvasWidth - 100;
+            const lines = wrapText(ctx, footerText, maxWidth);
+            const lineHeight = 40;
+            const footerPadding = 25;
+            const footerTextHeight = lines.length > 0 ? lines.length * lineHeight : 0;
+            const footerNaturalHeight = footerTextHeight + (footerPadding * 2);
+            
+            // Minimum space we need at bottom
+            const minBottomMargin = 30;
+            
+            // Calculate maximum available space for poster
+            // We need: header + poster + gap + footer + minBottomMargin = canvasHeight
+            // So: poster + gap = canvasHeight - header - footer - minBottomMargin
+            const posterGapFromFooter = 25;
+            const maxPosterHeight = canvasHeight - headerHeight - posterGapFromFooter - footerNaturalHeight - minBottomMargin;
+            
+            // Side margins
+            const sideMargin = 40;
+            const maxPosterWidth = canvasWidth - (sideMargin * 2);
+
+            // Calculate poster dimensions to fit within available space
+            const posterAspect = posterImage.width / posterImage.height;
+            let posterWidth, posterHeight;
+
+            if (maxPosterWidth / maxPosterHeight > posterAspect) {
+                posterHeight = maxPosterHeight;
+                posterWidth = posterHeight * posterAspect;
+            } else {
+                posterWidth = maxPosterWidth;
+                posterHeight = posterWidth / posterAspect;
+            }
+
+            // Center the poster horizontally
+            const posterX = (canvasWidth - posterWidth) / 2;
+            const posterY = headerHeight;
+
+            // Draw poster
+            ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
+
+            // Place footer right after the poster with the gap
+            const footerY = posterY + posterHeight + posterGapFromFooter;
+
+            // Draw header image with proper padding and maintain aspect ratio
+            const headerAspect = headerImage.width / headerImage.height;
+            let drawHeaderWidth, drawHeaderHeight;
+            
+            // Scale to fit within the available header space
+            if (canvasWidth / headerImageHeight > headerAspect) {
+                // Header is limited by height
+                drawHeaderHeight = headerImageHeight;
+                drawHeaderWidth = drawHeaderHeight * headerAspect;
+            } else {
+                // Header is limited by width
+                drawHeaderWidth = canvasWidth;
+                drawHeaderHeight = drawHeaderWidth / headerAspect;
+            }
+            
+            // Center the header image
+            const headerX = (canvasWidth - drawHeaderWidth) / 2;
+            const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
+            ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
+
+            // Draw footer
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, footerY, canvasWidth, footerNaturalHeight);
+            
+            if (footerText.trim()) {
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 32px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                
+                const startY = footerY + footerPadding;
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
+                });
+            }
+        }
+
+        function wrapText(ctx, text, maxWidth) {
+            if (!text.trim()) return [];
+            
+            const lines = [];
+            
+            // Split by newlines first to respect manual breaks
+            const paragraphs = text.split('\n');
+            
+            paragraphs.forEach(paragraph => {
+                if (!paragraph.trim()) {
+                    lines.push(''); // Preserve empty lines
+                    return;
+                }
+                
+                // Split into segments at ". " (period + space) for better breaking
+                const segments = paragraph.split(/(\.\s+)/);
+                let currentLine = '';
+                
+                segments.forEach(segment => {
+                    // Try adding the segment
+                    const testLine = currentLine + segment;
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth) {
+                        if (currentLine) {
+                            // Current line is full, push it
+                            lines.push(currentLine.trim());
+                            currentLine = segment;
+                            
+                            // Check if the segment itself is too long
+                            if (ctx.measureText(segment).width > maxWidth) {
+                                // Force-break long segment by characters
+                                const chars = segment.split('');
+                                currentLine = '';
+                                chars.forEach(char => {
+                                    const test = currentLine + char;
+                                    if (ctx.measureText(test).width > maxWidth && currentLine) {
+                                        lines.push(currentLine);
+                                        currentLine = char;
+                                    } else {
+                                        currentLine = test;
+                                    }
+                                });
+                            }
+                        } else {
+                            // Segment is too long and nothing in current line, force-break it
+                            const chars = segment.split('');
+                            chars.forEach(char => {
+                                const test = currentLine + char;
+                                if (ctx.measureText(test).width > maxWidth && currentLine) {
+                                    lines.push(currentLine);
+                                    currentLine = char;
+                                } else {
+                                    currentLine = test;
+                                }
+                            });
+                        }
+                    } else {
+                        currentLine = testLine;
+                    }
+                });
+                
+                if (currentLine.trim()) {
+                    lines.push(currentLine.trim());
+                }
+            });
+            
+            return lines;
+        }
+
+        function downloadImage() {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) return;
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `poster-${ratio}-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>
