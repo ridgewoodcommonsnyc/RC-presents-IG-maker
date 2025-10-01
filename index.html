@@ -296,16 +296,29 @@
                 canvasHeight - footerNaturalHeight - minBottomMargin : 
                 footerStartY;
 
-            // Draw header image with proper padding
-            const headerScale = canvasWidth / headerImage.width;
-            const scaledHeaderHeight = Math.min(headerImageHeight, headerImage.height * headerScale);
-            const headerY = headerPadding + (headerImageHeight - scaledHeaderHeight) / 2;
-            ctx.drawImage(headerImage, 0, headerY, canvasWidth, scaledHeaderHeight);
+            // Draw header image with proper padding and maintain aspect ratio
+            const headerAspect = headerImage.width / headerImage.height;
+            let drawHeaderWidth, drawHeaderHeight;
+            
+            // Scale to fit within the available header space
+            if (canvasWidth / headerImageHeight > headerAspect) {
+                // Header is limited by height
+                drawHeaderHeight = headerImageHeight;
+                drawHeaderWidth = drawHeaderHeight * headerAspect;
+            } else {
+                // Header is limited by width
+                drawHeaderWidth = canvasWidth;
+                drawHeaderHeight = drawHeaderWidth / headerAspect;
+            }
+            
+            // Center the header image
+            const headerX = (canvasWidth - drawHeaderWidth) / 2;
+            const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
+            ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
 
             // Draw footer
-            const footerY = canvasHeight - footerHeight;
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, footerY, canvasWidth, footerHeight);
+            ctx.fillRect(0, footerY, canvasWidth, footerNaturalHeight);
             
             if (footerText.trim()) {
                 ctx.fillStyle = '#000000';
