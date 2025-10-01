@@ -1,253 +1,347 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Download } from 'lucide-react';
-
-export default function MoviePosterFramer() {
-  const [posterImage, setPosterImage] = useState(null);
-  const [ratio, setRatio] = useState('story');
-  const [footerText, setFooterText] = useState('');
-  const canvasRef = useRef(null);
-  const fileInputRef = useRef(null);
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          setPosterImage(img);
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const [headerImage, setHeaderImage] = useState(null);
-
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => setHeaderImage(img);
-    img.src = '/assets/header.png';
-  }, []);
-
-  useEffect(() => {
-    if (posterImage && headerImage) {
-      renderCanvas();
-    }
-  }, [posterImage, headerImage, ratio, footerText]);
-
-  const renderCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !posterImage || !headerImage) return;
-
-    const ctx = canvas.getContext('2d');
-    
-    // Set canvas dimensions based on ratio
-    const canvasWidth = ratio === 'story' ? 1080 : 1080;
-    const canvasHeight = ratio === 'story' ? 1920 : 1350;
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    // Fill background with white
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-    // Header dimensions
-    const headerHeight = 120;
-    
-    // Calculate footer height based on text
-    ctx.font = 'bold 32px "Courier New", monospace';
-    const maxWidth = canvasWidth - 80;
-    const lines = wrapText(ctx, footerText, maxWidth);
-    const lineHeight = 40;
-    const footerPadding = 20;
-    const footerHeight = lines.length > 0 ? (lines.length * lineHeight + footerPadding * 2) : 60;
-
-    // Calculate available space for poster
-    const availableHeight = canvasHeight - headerHeight - footerHeight;
-    const availableWidth = canvasWidth - 80;
-
-    // Calculate poster dimensions to fit within available space
-    const posterAspect = posterImage.width / posterImage.height;
-    let posterWidth, posterHeight;
-
-    if (availableWidth / availableHeight > posterAspect) {
-      posterHeight = availableHeight;
-      posterWidth = posterHeight * posterAspect;
-    } else {
-      posterWidth = availableWidth;
-      posterHeight = posterWidth / posterAspect;
-    }
-
-    // Center the poster
-    const posterX = (canvasWidth - posterWidth) / 2;
-    const posterY = headerHeight + (availableHeight - posterHeight) / 2;
-
-    // Draw poster
-    ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
-
-    // Draw header image
-    const headerScale = canvasWidth / headerImage.width;
-    const scaledHeaderHeight = headerImage.height * headerScale;
-    const headerY = (headerHeight - scaledHeaderHeight) / 2;
-    ctx.drawImage(headerImage, 0, headerY, canvasWidth, scaledHeaderHeight);
-
-    // Draw footer
-    const footerY = canvasHeight - footerHeight;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, footerY, canvasWidth, footerHeight);
-    
-    if (footerText.trim()) {
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 32px "Courier New", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      
-      const startY = footerY + footerPadding;
-      lines.forEach((line, index) => {
-        ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
-      });
-    }
-  };
-
-  const wrapText = (ctx, text, maxWidth) => {
-    if (!text.trim()) return [];
-    
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = '';
-
-    words.forEach(word => {
-      const testLine = currentLine ? currentLine + ' ' + word : word;
-      const metrics = ctx.measureText(testLine);
-      
-      if (metrics.width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    });
-    
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-    
-    return lines;
-  };
-
-  const handleDownload = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `poster-${ratio}-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">
-          Movie Poster Framer
-        </h1>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Controls */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Upload Poster</h2>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Upload size={20} />
-                Choose Image
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Format</h2>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="story"
-                    checked={ratio === 'story'}
-                    onChange={(e) => setRatio(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span>Instagram Story (9:16)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="post"
-                    checked={ratio === 'post'}
-                    onChange={(e) => setRatio(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span>Instagram Post (4:5)</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Footer Text</h2>
-              <textarea
-                value={footerText}
-                onChange={(e) => setFooterText(e.target.value)}
-                placeholder="e.g., December 2, 6:30 PM"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                rows="4"
-              />
-            </div>
-
-            {posterImage && (
-              <button
-                onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Download size={20} />
-                Download Image
-              </button>
-            )}
-          </div>
-
-          {/* Preview */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Preview</h2>
-            <div className="flex justify-center items-start">
-              {posterImage && headerImage ? (
-                <canvas
-                  ref={canvasRef}
-                  className="max-w-full h-auto border border-gray-300 rounded"
-                  style={{ maxHeight: '70vh' }}
-                />
-              ) : (
-                <div className="text-center text-gray-500 py-20">
-                  Upload a poster to see preview
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Poster Framer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f3f4f6;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #111827;
+            margin-bottom: 2rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        .btn-blue {
+            background-color: #2563eb;
+            color: white;
+        }
+        .btn-blue:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-green {
+            background-color: #16a34a;
+            color: white;
+        }
+        .btn-green:hover {
+            background-color: #15803d;
+        }
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        input[type="radio"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .preview-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 300px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            max-height: 70vh;
+        }
+        .placeholder {
+            text-align: center;
+            color: #6b7280;
+            padding: 5rem 2rem;
+        }
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Poster Framer</h1>
+        
+        <div class="grid">
+            <!-- Controls -->
+            <div>
+                <div class="card">
+                    <h2>Upload Poster</h2>
+                    <input type="file" id="fileInput" accept="image/*">
+                    <button class="btn btn-blue" onclick="document.getElementById('fileInput').click()">
+                        📤 Choose Image
+                    </button>
                 </div>
-              )}
+
+                <div class="card">
+                    <h2>Format</h2>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="ratio" value="story" checked onchange="updateRatio(this.value)">
+                            <span>Instagram Story (9:16)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="ratio" value="post" onchange="updateRatio(this.value)">
+                            <span>Instagram Post (4:5)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Footer Text</h2>
+                    <textarea id="footerText" rows="4" placeholder="e.g., December 2, 6:30 PM" oninput="renderCanvas()"></textarea>
+                </div>
+
+                <button id="downloadBtn" class="btn btn-green" onclick="downloadImage()" style="display: none;">
+                    ⬇️ Download Image
+                </button>
             </div>
-          </div>
+
+            <!-- Preview -->
+            <div class="card">
+                <h2>Preview</h2>
+                <div class="preview-container">
+                    <div id="placeholder" class="placeholder">Loading header...</div>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  );
-}
+
+    <script>
+        let posterImage = null;
+        let headerImage = null;
+        let ratio = 'story';
+
+        // Load header image
+        const header = new Image();
+        header.onload = () => {
+            headerImage = header;
+            document.getElementById('placeholder').textContent = 'Upload a poster to see preview';
+        };
+        header.onerror = () => {
+            document.getElementById('placeholder').textContent = 'Error loading header image';
+        };
+        header.src = '/assets/header.png';
+
+        // Handle poster upload
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        posterImage = img;
+                        renderCanvas();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function updateRatio(newRatio) {
+            ratio = newRatio;
+            renderCanvas();
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const placeholder = document.getElementById('placeholder');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (!posterImage || !headerImage) return;
+
+            const ctx = canvas.getContext('2d');
+            
+            // Show canvas, hide placeholder
+            canvas.style.display = 'block';
+            placeholder.style.display = 'none';
+            downloadBtn.style.display = 'flex';
+
+            // Set canvas dimensions based on ratio
+            const canvasWidth = 1080;
+            const canvasHeight = ratio === 'story' ? 1920 : 1350;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            // Fill background with white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Header dimensions
+            const headerHeight = 120;
+            
+            // Get footer text
+            const footerText = document.getElementById('footerText').value;
+            
+            // Calculate footer height based on text
+            ctx.font = 'bold 32px "Courier New", monospace';
+            const maxWidth = canvasWidth - 80;
+            const lines = wrapText(ctx, footerText, maxWidth);
+            const lineHeight = 40;
+            const footerPadding = 20;
+            const footerHeight = lines.length > 0 ? (lines.length * lineHeight + footerPadding * 2) : 60;
+
+            // Calculate available space for poster
+            const availableHeight = canvasHeight - headerHeight - footerHeight;
+            const availableWidth = canvasWidth - 80;
+
+            // Calculate poster dimensions to fit within available space
+            const posterAspect = posterImage.width / posterImage.height;
+            let posterWidth, posterHeight;
+
+            if (availableWidth / availableHeight > posterAspect) {
+                posterHeight = availableHeight;
+                posterWidth = posterHeight * posterAspect;
+            } else {
+                posterWidth = availableWidth;
+                posterHeight = posterWidth / posterAspect;
+            }
+
+            // Center the poster
+            const posterX = (canvasWidth - posterWidth) / 2;
+            const posterY = headerHeight + (availableHeight - posterHeight) / 2;
+
+            // Draw poster
+            ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
+
+            // Draw header image
+            const headerScale = canvasWidth / headerImage.width;
+            const scaledHeaderHeight = headerImage.height * headerScale;
+            const headerY = (headerHeight - scaledHeaderHeight) / 2;
+            ctx.drawImage(headerImage, 0, headerY, canvasWidth, scaledHeaderHeight);
+
+            // Draw footer
+            const footerY = canvasHeight - footerHeight;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, footerY, canvasWidth, footerHeight);
+            
+            if (footerText.trim()) {
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 32px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                
+                const startY = footerY + footerPadding;
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
+                });
+            }
+        }
+
+        function wrapText(ctx, text, maxWidth) {
+            if (!text.trim()) return [];
+            
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = '';
+
+            words.forEach(word => {
+                const testLine = currentLine ? currentLine + ' ' + word : word;
+                const metrics = ctx.measureText(testLine);
+                
+                if (metrics.width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            });
+            
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+            
+            return lines;
+        }
+
+        function downloadImage() {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) return;
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `poster-${ratio}-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>
