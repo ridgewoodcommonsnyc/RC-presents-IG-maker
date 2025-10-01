@@ -245,41 +245,56 @@
             const headerPadding = 25;
             const headerHeight = headerImageHeight + (headerPadding * 2);
             
-            // Get footer text
+            // Get footer text and calculate its natural height
             const footerText = document.getElementById('footerText').value;
-            
-            // Calculate footer height based on text
             ctx.font = 'bold 32px "Courier New", monospace';
             const maxWidth = canvasWidth - 100;
             const lines = wrapText(ctx, footerText, maxWidth);
             const lineHeight = 40;
             const footerPadding = 25;
-            const minFooterHeight = 70;
-            const footerHeight = lines.length > 0 ? Math.max(minFooterHeight, lines.length * lineHeight + footerPadding * 2) : minFooterHeight;
-
-            // Calculate available space for poster
+            const footerTextHeight = lines.length > 0 ? lines.length * lineHeight : 0;
+            const footerNaturalHeight = footerTextHeight + (footerPadding * 2);
+            
+            // Minimum space we need at bottom
+            const minBottomMargin = 30;
+            
+            // Calculate maximum available space for poster
+            // We need: header + poster + gap + footer + minBottomMargin = canvasHeight
+            // So: poster + gap = canvasHeight - header - footer - minBottomMargin
+            const posterGapFromFooter = 25;
+            const maxPosterHeight = canvasHeight - headerHeight - posterGapFromFooter - footerNaturalHeight - minBottomMargin;
+            
+            // Side margins
             const sideMargin = 40;
-            const availableHeight = canvasHeight - headerHeight - footerHeight;
-            const availableWidth = canvasWidth - (sideMargin * 2);
+            const maxPosterWidth = canvasWidth - (sideMargin * 2);
 
             // Calculate poster dimensions to fit within available space
             const posterAspect = posterImage.width / posterImage.height;
             let posterWidth, posterHeight;
 
-            if (availableWidth / availableHeight > posterAspect) {
-                posterHeight = availableHeight;
+            if (maxPosterWidth / maxPosterHeight > posterAspect) {
+                posterHeight = maxPosterHeight;
                 posterWidth = posterHeight * posterAspect;
             } else {
-                posterWidth = availableWidth;
+                posterWidth = maxPosterWidth;
                 posterHeight = posterWidth / posterAspect;
             }
 
-            // Center the poster
+            // Center the poster horizontally
             const posterX = (canvasWidth - posterWidth) / 2;
-            const posterY = headerHeight + (availableHeight - posterHeight) / 2;
+            const posterY = headerHeight;
 
             // Draw poster
             ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
+
+            // Calculate footer position based on where poster ends
+            const footerStartY = posterY + posterHeight + posterGapFromFooter;
+            const actualBottomMargin = canvasHeight - footerStartY - footerNaturalHeight;
+            
+            // If we have more bottom space than needed, we can center things better
+            const footerY = actualBottomMargin > minBottomMargin ? 
+                canvasHeight - footerNaturalHeight - minBottomMargin : 
+                footerStartY;
 
             // Draw header image with proper padding
             const headerScale = canvasWidth / headerImage.width;
