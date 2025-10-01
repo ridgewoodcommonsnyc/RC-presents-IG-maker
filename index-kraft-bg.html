@@ -158,6 +158,24 @@
                 </div>
 
                 <div class="card">
+                    <h2>Background</h2>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="background" value="paper" checked onchange="updateBackground(this.value)">
+                            <span>Paper Texture</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="background" value="solid" onchange="updateBackground(this.value)">
+                            <span>Solid Color</span>
+                        </label>
+                    </div>
+                    <div id="colorPickerContainer" style="display: none; margin-top: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Choose Color:</label>
+                        <input type="color" id="bgColor" value="#ffffff" onchange="renderCanvas()" style="width: 100%; height: 50px; cursor: pointer; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                </div>
+
+                <div class="card">
                     <h2>Footer Text</h2>
                     <textarea id="footerText" rows="4" placeholder="e.g., December 2, 6:30 PM" oninput="renderCanvas()"></textarea>
                 </div>
@@ -182,6 +200,7 @@
         let posterImage = null;
         let headerImage = null;
         let ratio = 'story';
+        let backgroundType = 'paper';
 
         // Load header image
         const header = new Image();
@@ -213,6 +232,17 @@
 
         function updateRatio(newRatio) {
             ratio = newRatio;
+            renderCanvas();
+        }
+
+        function updateBackground(newType) {
+            backgroundType = newType;
+            const colorPicker = document.getElementById('colorPickerContainer');
+            if (newType === 'solid') {
+                colorPicker.style.display = 'block';
+            } else {
+                colorPicker.style.display = 'none';
+            }
             renderCanvas();
         }
 
@@ -279,8 +309,14 @@
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
 
-            // Generate brown paper texture background
-            generatePaperTexture(ctx, canvasWidth, canvasHeight);
+            // Generate background based on selection
+            if (backgroundType === 'paper') {
+                generatePaperTexture(ctx, canvasWidth, canvasHeight);
+            } else {
+                const bgColor = document.getElementById('bgColor').value;
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            }
 
             // Header dimensions - give it proper space with padding
             const headerImageHeight = 200;
