@@ -337,8 +337,6 @@
             const minBottomMargin = 30;
             
             // Calculate maximum available space for poster
-            // We need: header + poster + gap + footer + minBottomMargin = canvasHeight
-            // So: poster + gap = canvasHeight - header - footer - minBottomMargin
             const posterGapFromFooter = 25;
             const maxPosterHeight = canvasHeight - headerHeight - posterGapFromFooter - footerNaturalHeight - minBottomMargin;
             
@@ -365,32 +363,25 @@
             // Draw poster
             ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
 
-            // Place footer right after the poster with the gap
-            const footerY = posterY + posterHeight + posterGapFromFooter;
-
-            // Draw header image with proper padding and maintain aspect ratio
+            // Draw header image
             const headerAspect = headerImage.width / headerImage.height;
             let drawHeaderWidth, drawHeaderHeight;
             
-            // Scale to fit within the available header space
             if (canvasWidth / headerImageHeight > headerAspect) {
-                // Header is limited by height
                 drawHeaderHeight = headerImageHeight;
                 drawHeaderWidth = drawHeaderHeight * headerAspect;
             } else {
-                // Header is limited by width
                 drawHeaderWidth = canvasWidth;
                 drawHeaderHeight = drawHeaderWidth / headerAspect;
             }
             
-            // Center the header image
             const headerX = (canvasWidth - drawHeaderWidth) / 2;
             const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
             ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
             
+            // Draw footer text directly on background (no blend mode, no white rectangle)
             if (footerText.trim()) {
-                // Apply multiply blend mode for footer text
-                ctx.globalCompositeOperation = 'multiply';
+                const footerY = posterY + posterHeight + posterGapFromFooter;
                 ctx.fillStyle = '#000000';
                 ctx.font = 'bold 32px "Courier New", monospace';
                 ctx.textAlign = 'center';
@@ -400,7 +391,6 @@
                 lines.forEach((line, index) => {
                     ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
                 });
-                ctx.globalCompositeOperation = 'source-over'; // Reset to normal
             }
         }
 
@@ -408,34 +398,27 @@
             if (!text.trim()) return [];
             
             const lines = [];
-            
-            // Split by newlines first to respect manual breaks
             const paragraphs = text.split('\n');
             
             paragraphs.forEach(paragraph => {
                 if (!paragraph.trim()) {
-                    lines.push(''); // Preserve empty lines
+                    lines.push('');
                     return;
                 }
                 
-                // Split into segments at ". " (period + space) for better breaking
                 const segments = paragraph.split(/(\.\s+)/);
                 let currentLine = '';
                 
                 segments.forEach(segment => {
-                    // Try adding the segment
                     const testLine = currentLine + segment;
                     const metrics = ctx.measureText(testLine);
                     
                     if (metrics.width > maxWidth) {
                         if (currentLine) {
-                            // Current line is full, push it
                             lines.push(currentLine.trim());
                             currentLine = segment;
                             
-                            // Check if the segment itself is too long
                             if (ctx.measureText(segment).width > maxWidth) {
-                                // Force-break long segment by characters
                                 const chars = segment.split('');
                                 currentLine = '';
                                 chars.forEach(char => {
@@ -449,7 +432,6 @@
                                 });
                             }
                         } else {
-                            // Segment is too long and nothing in current line, force-break it
                             const chars = segment.split('');
                             chars.forEach(char => {
                                 const test = currentLine + char;
