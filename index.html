@@ -1,0 +1,253 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, Download } from 'lucide-react';
+
+export default function MoviePosterFramer() {
+  const [posterImage, setPosterImage] = useState(null);
+  const [ratio, setRatio] = useState('story');
+  const [footerText, setFooterText] = useState('');
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          setPosterImage(img);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const [headerImage, setHeaderImage] = useState(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => setHeaderImage(img);
+    img.src = '/assets/header.png';
+  }, []);
+
+  useEffect(() => {
+    if (posterImage && headerImage) {
+      renderCanvas();
+    }
+  }, [posterImage, headerImage, ratio, footerText]);
+
+  const renderCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !posterImage || !headerImage) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas dimensions based on ratio
+    const canvasWidth = ratio === 'story' ? 1080 : 1080;
+    const canvasHeight = ratio === 'story' ? 1920 : 1350;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Fill background with white
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Header dimensions
+    const headerHeight = 120;
+    
+    // Calculate footer height based on text
+    ctx.font = 'bold 32px "Courier New", monospace';
+    const maxWidth = canvasWidth - 80;
+    const lines = wrapText(ctx, footerText, maxWidth);
+    const lineHeight = 40;
+    const footerPadding = 20;
+    const footerHeight = lines.length > 0 ? (lines.length * lineHeight + footerPadding * 2) : 60;
+
+    // Calculate available space for poster
+    const availableHeight = canvasHeight - headerHeight - footerHeight;
+    const availableWidth = canvasWidth - 80;
+
+    // Calculate poster dimensions to fit within available space
+    const posterAspect = posterImage.width / posterImage.height;
+    let posterWidth, posterHeight;
+
+    if (availableWidth / availableHeight > posterAspect) {
+      posterHeight = availableHeight;
+      posterWidth = posterHeight * posterAspect;
+    } else {
+      posterWidth = availableWidth;
+      posterHeight = posterWidth / posterAspect;
+    }
+
+    // Center the poster
+    const posterX = (canvasWidth - posterWidth) / 2;
+    const posterY = headerHeight + (availableHeight - posterHeight) / 2;
+
+    // Draw poster
+    ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
+
+    // Draw header image
+    const headerScale = canvasWidth / headerImage.width;
+    const scaledHeaderHeight = headerImage.height * headerScale;
+    const headerY = (headerHeight - scaledHeaderHeight) / 2;
+    ctx.drawImage(headerImage, 0, headerY, canvasWidth, scaledHeaderHeight);
+
+    // Draw footer
+    const footerY = canvasHeight - footerHeight;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, footerY, canvasWidth, footerHeight);
+    
+    if (footerText.trim()) {
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 32px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      
+      const startY = footerY + footerPadding;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
+      });
+    }
+  };
+
+  const wrapText = (ctx, text, maxWidth) => {
+    if (!text.trim()) return [];
+    
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  };
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `poster-${ratio}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">
+          Movie Poster Framer
+        </h1>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Controls */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Upload Poster</h2>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Upload size={20} />
+                Choose Image
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Format</h2>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="story"
+                    checked={ratio === 'story'}
+                    onChange={(e) => setRatio(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span>Instagram Story (9:16)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="post"
+                    checked={ratio === 'post'}
+                    onChange={(e) => setRatio(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span>Instagram Post (4:5)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Footer Text</h2>
+              <textarea
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                placeholder="e.g., December 2, 6:30 PM"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                rows="4"
+              />
+            </div>
+
+            {posterImage && (
+              <button
+                onClick={handleDownload}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download size={20} />
+                Download Image
+              </button>
+            )}
+          </div>
+
+          {/* Preview */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Preview</h2>
+            <div className="flex justify-center items-start">
+              {posterImage && headerImage ? (
+                <canvas
+                  ref={canvasRef}
+                  className="max-w-full h-auto border border-gray-300 rounded"
+                  style={{ maxHeight: '70vh' }}
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-20">
+                  Upload a poster to see preview
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
