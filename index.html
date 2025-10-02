@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RC Social Post Maker</title>
+    <title>RC Social Image Maker</title>
     <style>
         * {
             margin: 0;
@@ -130,7 +130,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>RC Social Post Maker</h1>
+        <h1>RC Social Image Maker</h1>
         
         <div class="grid">
             <!-- Controls -->
@@ -154,6 +154,24 @@
                             <input type="radio" name="ratio" value="post" onchange="updateRatio(this.value)">
                             <span>Instagram Post (4:5)</span>
                         </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Background</h2>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="background" value="paper" checked onchange="updateBackground(this.value)">
+                            <span>Paper Texture</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="background" value="solid" onchange="updateBackground(this.value)">
+                            <span>Solid Color</span>
+                        </label>
+                    </div>
+                    <div id="colorPickerContainer" style="display: none; margin-top: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Choose Color:</label>
+                        <input type="color" id="bgColor" value="#ffffff" onchange="renderCanvas()" style="width: 100%; height: 50px; cursor: pointer; border: 1px solid #d1d5db; border-radius: 0.5rem;">
                     </div>
                 </div>
 
@@ -182,6 +200,7 @@
         let posterImage = null;
         let headerImage = null;
         let ratio = 'story';
+        let backgroundType = 'paper';
 
         // Load header image
         const header = new Image();
@@ -192,7 +211,7 @@
         header.onerror = () => {
             document.getElementById('placeholder').textContent = 'Error loading header image';
         };
-        header.src = 'assets/header.png';
+        header.src = './assets/header.png';
 
         // Handle poster upload
         document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -216,6 +235,60 @@
             renderCanvas();
         }
 
+        function updateBackground(newType) {
+            backgroundType = newType;
+            const colorPicker = document.getElementById('colorPickerContainer');
+            if (newType === 'solid') {
+                colorPicker.style.display = 'block';
+            } else {
+                colorPicker.style.display = 'none';
+            }
+            renderCanvas();
+        }
+
+        function generatePaperTexture(ctx, width, height) {
+            // Base color: Subtle Beige
+            ctx.fillStyle = '#E5D5C0';
+            ctx.fillRect(0, 0, width, height);
+
+            // Add subtle color variation
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const size = Math.random() * 100 + 50;
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                const alpha = Math.random() * 0.05;
+                gradient.addColorStop(0, `rgba(139, 90, 43, ${alpha})`);
+                gradient.addColorStop(1, `rgba(139, 90, 43, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // Add speckles (600 speckles, size 0.3-1, darkness variation 25)
+            for (let i = 0; i < 600; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const size = Math.random() * 1 + 0.3;
+                const darkness = Math.random() * 25;
+                
+                ctx.fillStyle = `rgba(${60 + darkness}, ${40 + darkness}, ${20 + darkness}, ${0.3 + Math.random() * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Add noise texture
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 10;
+                data[i] += noise;     // R
+                data[i + 1] += noise; // G
+                data[i + 2] += noise; // B
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
         function renderCanvas() {
             const canvas = document.getElementById('canvas');
             const placeholder = document.getElementById('placeholder');
@@ -236,9 +309,14 @@
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
 
-            // Fill background with white
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            // Generate background based on selection
+            if (backgroundType === 'paper') {
+                generatePaperTexture(ctx, canvasWidth, canvasHeight);
+            } else {
+                const bgColor = document.getElementById('bgColor').value;
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            }
 
             // Header dimensions - give it proper space with padding
             const headerImageHeight = 200;
@@ -259,8 +337,6 @@
             const minBottomMargin = 30;
             
             // Calculate maximum available space for poster
-            // We need: header + poster + gap + footer + minBottomMargin = canvasHeight
-            // So: poster + gap = canvasHeight - header - footer - minBottomMargin
             const posterGapFromFooter = 25;
             const maxPosterHeight = canvasHeight - headerHeight - posterGapFromFooter - footerNaturalHeight - minBottomMargin;
             
@@ -287,34 +363,25 @@
             // Draw poster
             ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
 
-            // Place footer right after the poster with the gap
-            const footerY = posterY + posterHeight + posterGapFromFooter;
-
-            // Draw header image with proper padding and maintain aspect ratio
+            // Draw header image
             const headerAspect = headerImage.width / headerImage.height;
             let drawHeaderWidth, drawHeaderHeight;
             
-            // Scale to fit within the available header space
             if (canvasWidth / headerImageHeight > headerAspect) {
-                // Header is limited by height
                 drawHeaderHeight = headerImageHeight;
                 drawHeaderWidth = drawHeaderHeight * headerAspect;
             } else {
-                // Header is limited by width
                 drawHeaderWidth = canvasWidth;
                 drawHeaderHeight = drawHeaderWidth / headerAspect;
             }
             
-            // Center the header image
             const headerX = (canvasWidth - drawHeaderWidth) / 2;
             const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
             ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
-
-            // Draw footer
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, footerY, canvasWidth, footerNaturalHeight);
             
+            // Draw footer text directly on background (no blend mode, no white rectangle)
             if (footerText.trim()) {
+                const footerY = posterY + posterHeight + posterGapFromFooter;
                 ctx.fillStyle = '#000000';
                 ctx.font = 'bold 32px "Courier New", monospace';
                 ctx.textAlign = 'center';
@@ -331,34 +398,27 @@
             if (!text.trim()) return [];
             
             const lines = [];
-            
-            // Split by newlines first to respect manual breaks
             const paragraphs = text.split('\n');
             
             paragraphs.forEach(paragraph => {
                 if (!paragraph.trim()) {
-                    lines.push(''); // Preserve empty lines
+                    lines.push('');
                     return;
                 }
                 
-                // Split into segments at ". " (period + space) for better breaking
                 const segments = paragraph.split(/(\.\s+)/);
                 let currentLine = '';
                 
                 segments.forEach(segment => {
-                    // Try adding the segment
                     const testLine = currentLine + segment;
                     const metrics = ctx.measureText(testLine);
                     
                     if (metrics.width > maxWidth) {
                         if (currentLine) {
-                            // Current line is full, push it
                             lines.push(currentLine.trim());
                             currentLine = segment;
                             
-                            // Check if the segment itself is too long
                             if (ctx.measureText(segment).width > maxWidth) {
-                                // Force-break long segment by characters
                                 const chars = segment.split('');
                                 currentLine = '';
                                 chars.forEach(char => {
@@ -372,7 +432,6 @@
                                 });
                             }
                         } else {
-                            // Segment is too long and nothing in current line, force-break it
                             const chars = segment.split('');
                             chars.forEach(char => {
                                 const test = currentLine + char;
