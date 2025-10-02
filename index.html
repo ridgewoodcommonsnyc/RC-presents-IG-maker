@@ -176,8 +176,17 @@
                 </div>
 
                 <div class="card">
+                    <h2>Body Text</h2>
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Text Size: <span id="bodySize">32</span>px</label>
+                    <input type="range" id="bodySizeSlider" min="16" max="64" value="32" oninput="document.getElementById('bodySize').textContent = this.value; renderCanvas()" style="width: 100%; margin-bottom: 1rem;">
+                    <textarea id="bodyText" rows="4" placeholder="e.g., Join us for a screening of..." oninput="renderCanvas()"></textarea>
+                </div>
+
+                <div class="card">
                     <h2>Footer Text</h2>
-                    <textarea id="footerText" rows="4" placeholder="e.g., December 2, 6:30 PM" oninput="renderCanvas()"></textarea>
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Text Size: <span id="footerSize">32</span>px</label>
+                    <input type="range" id="footerSizeSlider" min="16" max="64" value="32" oninput="document.getElementById('footerSize').textContent = this.value; renderCanvas()" style="width: 100%; margin-bottom: 1rem;">
+                    <textarea id="footerText" rows="2" placeholder="e.g., December 2, 6:30 PM" oninput="renderCanvas()"></textarea>
                 </div>
 
                 <button id="downloadBtn" class="btn btn-green" onclick="downloadImage()" style="display: none;">
@@ -323,22 +332,35 @@
             const headerPadding = 20;
             const headerHeight = headerImageHeight + (headerPadding * 2);
             
+            // Get body text and calculate its natural height
+            const bodyText = document.getElementById('bodyText').value;
+            const bodyFontSize = parseInt(document.getElementById('bodySizeSlider').value);
+            ctx.font = `bold ${bodyFontSize}px "Courier New", monospace`;
+            const bodyMaxWidth = canvasWidth - 100;
+            const bodyLines = wrapText(ctx, bodyText, bodyMaxWidth);
+            const bodyLineHeight = bodyFontSize * 1.25;
+            const bodyPadding = 25;
+            const bodyTextHeight = bodyLines.length > 0 ? bodyLines.length * bodyLineHeight : 0;
+            const bodyNaturalHeight = bodyTextHeight + (bodyPadding * 2);
+            
             // Get footer text and calculate its natural height
             const footerText = document.getElementById('footerText').value;
-            ctx.font = 'bold 32px "Courier New", monospace';
-            const maxWidth = canvasWidth - 100;
-            const lines = wrapText(ctx, footerText, maxWidth);
-            const lineHeight = 40;
+            const footerFontSize = parseInt(document.getElementById('footerSizeSlider').value);
+            ctx.font = `bold ${footerFontSize}px "Courier New", monospace`;
+            const footerMaxWidth = canvasWidth - 100;
+            const footerLines = wrapText(ctx, footerText, footerMaxWidth);
+            const footerLineHeight = footerFontSize * 1.25;
             const footerPadding = 25;
-            const footerTextHeight = lines.length > 0 ? lines.length * lineHeight : 0;
+            const footerTextHeight = footerLines.length > 0 ? footerLines.length * footerLineHeight : 0;
             const footerNaturalHeight = footerTextHeight + (footerPadding * 2);
             
             // Minimum space we need at bottom
             const minBottomMargin = 30;
             
             // Calculate maximum available space for poster
-            const posterGapFromFooter = 25;
-            const maxPosterHeight = canvasHeight - headerHeight - posterGapFromFooter - footerNaturalHeight - minBottomMargin;
+            const posterGapFromBody = 25;
+            const bodyGapFromFooter = 20;
+            const maxPosterHeight = canvasHeight - headerHeight - posterGapFromBody - bodyNaturalHeight - bodyGapFromFooter - footerNaturalHeight - minBottomMargin;
             
             // Side margins
             const sideMargin = 40;
@@ -379,17 +401,31 @@
             const headerY = headerPadding + (headerImageHeight - drawHeaderHeight) / 2;
             ctx.drawImage(headerImage, headerX, headerY, drawHeaderWidth, drawHeaderHeight);
             
-            // Draw footer text directly on background (no blend mode, no white rectangle)
-            if (footerText.trim()) {
-                const footerY = posterY + posterHeight + posterGapFromFooter;
+            // Draw body text (positioned below poster with gap)
+            if (bodyText.trim()) {
+                const bodyY = posterY + posterHeight + posterGapFromBody;
                 ctx.fillStyle = '#000000';
-                ctx.font = 'bold 32px "Courier New", monospace';
+                ctx.font = `bold ${bodyFontSize}px "Courier New", monospace`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                
+                const startY = bodyY + bodyPadding;
+                bodyLines.forEach((line, index) => {
+                    ctx.fillText(line, canvasWidth / 2, startY + (index * bodyLineHeight));
+                });
+            }
+            
+            // Draw footer text (positioned at bottom with margin from edge)
+            if (footerText.trim()) {
+                const footerY = canvasHeight - footerNaturalHeight - minBottomMargin;
+                ctx.fillStyle = '#000000';
+                ctx.font = `bold ${footerFontSize}px "Courier New", monospace`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 
                 const startY = footerY + footerPadding;
-                lines.forEach((line, index) => {
-                    ctx.fillText(line, canvasWidth / 2, startY + (index * lineHeight));
+                footerLines.forEach((line, index) => {
+                    ctx.fillText(line, canvasWidth / 2, startY + (index * footerLineHeight));
                 });
             }
         }
